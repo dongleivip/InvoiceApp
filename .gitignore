@@ -1,0 +1,11 @@
+## Mac OS
+.DS_Store
+
+## dotnet
+
+**/bin
+**/obj
+
+
+## LocalStack cache
+.localstack

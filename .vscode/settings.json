@@ -1,0 +1,8 @@
+{
+    "dotnet.defaultSolution": "invoice-app.sln",
+    "dotnet.unitTestDebuggingMode": "legacy",
+    "csharp.debug.codeLens": true,
+    "csharp.debug.enableStepFiltering": true,
+    "omnisharp.useModernNet": true,
+    "omnisharp.path": "latest"
+}

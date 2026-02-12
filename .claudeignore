@@ -1,0 +1,42 @@
+# --- 编译与构建产物 ---
+bin/
+obj/
+publish/
+dist/
+
+# --- .NET 核心配置文件与缓存 ---
+.vs/
+# .vscode/ 
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# --- 包管理相关 ---
+# 排除本地包缓存，Claude 只需要看你的 .csproj 里的引用即可
+packages/
+node_modules/
+
+# --- 测试与日志 ---
+TestResults/
+*.log
+*.tmp
+logs/
+
+# --- 数据库与敏感信息 ---
+# 避免 Claude 读取本地数据库或密钥
+*.db
+*.sqlite
+appsettings.Development.json
+appsettings.Local.json
+.env
+
+# --- 资源文件 ---
+# 除非你让 Claude 处理图片，否则建议排除大体积资源
+*.exe
+*.dll
+*.pdb
+*.nupkg
+*.zip
+*.7z

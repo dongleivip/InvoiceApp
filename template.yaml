@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Invoice Management API
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: dotnet8
+
+Resources:
+  InvoiceApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./invoice-api/
+      Handler: InvoiceApi::InvoiceApi.Program::Main
+      Events:
+        HealthCheck:
+          Type: Api
+          Properties:
+            Path: /health
+            Method: get
+        HealthCheckEnhanced:
+          Type: Api
+          Properties:
+            Path: /healthz
+            Method: get
+        GetCustomers:
+          Type: Api
+          Properties:
+            Path: /customers
+            Method: get
+        GetCustomerById:
+          Type: Api
+          Properties:
+            Path: /customers/{id}
+            Method: get
+        CreateCustomer:
+          Type: Api
+          Properties:
+            Path: /customers
+            Method: post
+        UpdateCustomer:
+          Type: Api
+          Properties:
+            Path: /customers/{id}
+            Method: put
+        DeleteCustomer:
+          Type: Api
+          Properties:
+            Path: /customers/{id}
+            Method: delete
+        GetInvoices:
+          Type: Api
+          Properties:
+            Path: /invoices
+            Method: get
+        GetInvoiceById:
+          Type: Api
+          Properties:
+            Path: /invoices/{id}
+            Method: get
+        CreateInvoice:
+          Type: Api
+          Properties:
+            Path: /invoices
+            Method: post
+        UpdateInvoice:
+          Type: Api
+          Properties:
+            Path: /invoices/{id}
+            Method: put
+        DeleteInvoice:
+          Type: Api
+          Properties:
+            Path: /invoices/{id}
+            Method: delete
+        GetCustomerInvoices:
+          Type: Api
+          Properties:
+            Path: /customers/{customerId}/invoices
+            Method: get
+
+Outputs:
+  InvoiceApi:
+    Description: "API Gateway endpoint URL for Invoice API"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
