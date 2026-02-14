@@ -9,6 +9,7 @@ class Program
     {
         try
         {
+            const TABLE_NAME = "Dev_InvoiceApp";
             Console.WriteLine("Initializing DynamoDB table for local development...");
 
             var config = new AmazonDynamoDBConfig
@@ -27,33 +28,33 @@ class Program
             {
                 var describeRequest = new DescribeTableRequest
                 {
-                    TableName = "InvoiceAppDev"
+                    TableName = TABLE_NAME
                 };
                 await client.DescribeTableAsync(describeRequest);
-                Console.WriteLine("Table 'InvoiceAppDev' already exists.");
+                Console.WriteLine($"Table '{TABLE_NAME}' already exists.");
                 return;
             }
             catch (ResourceNotFoundException)
             {
                 // Table doesn't exist, continue to create it
-                Console.WriteLine("Table 'InvoiceAppDev' does not exist. Creating...");
+                Console.WriteLine($"Table '{TABLE_NAME}' does not exist. Creating...");
             }
 
             // Create table request
             var createTableRequest = new CreateTableRequest
             {
-                TableName = "InvoiceAppDev",
+                TableName = TABLE_NAME,
                 KeySchema = new List<KeySchemaElement>
                 {
-                    new KeySchemaElement { AttributeName = "pk", KeyType = KeyType.HASH },
-                    new KeySchemaElement { AttributeName = "sk", KeyType = KeyType.RANGE }
+                    new KeySchemaElement { AttributeName = "PK", KeyType = KeyType.HASH },
+                    new KeySchemaElement { AttributeName = "SK", KeyType = KeyType.RANGE }
                 },
                 AttributeDefinitions = new List<AttributeDefinition>
                 {
-                    new AttributeDefinition { AttributeName = "pk", AttributeType = ScalarAttributeType.S },
-                    new AttributeDefinition { AttributeName = "sk", AttributeType = ScalarAttributeType.S },
-                    new AttributeDefinition { AttributeName = "gsi_pk", AttributeType = ScalarAttributeType.S },
-                    new AttributeDefinition { AttributeName = "gsi_sk", AttributeType = ScalarAttributeType.S }
+                    new AttributeDefinition { AttributeName = "PK", AttributeType = ScalarAttributeType.S },
+                    new AttributeDefinition { AttributeName = "SK", AttributeType = ScalarAttributeType.S },
+                    new AttributeDefinition { AttributeName = "GSI1PK", AttributeType = ScalarAttributeType.S },
+                    new AttributeDefinition { AttributeName = "GSI1SK", AttributeType = ScalarAttributeType.S }
                 },
                 GlobalSecondaryIndexes = new List<GlobalSecondaryIndex>
                 {
@@ -62,15 +63,10 @@ class Program
                         IndexName = "GSI1",
                         KeySchema = new List<KeySchemaElement>
                         {
-                            new KeySchemaElement { AttributeName = "gsi_pk", KeyType = KeyType.HASH },
-                            new KeySchemaElement { AttributeName = "gsi_sk", KeyType = KeyType.RANGE }
+                            new KeySchemaElement { AttributeName = "GSI1PK", KeyType = KeyType.HASH },
+                            new KeySchemaElement { AttributeName = "GSI1SK", KeyType = KeyType.RANGE }
                         },
-                        Projection = new Projection { ProjectionType = ProjectionType.ALL },
-                        ProvisionedThroughput = new ProvisionedThroughput
-                        {
-                            ReadCapacityUnits = 5,
-                            WriteCapacityUnits = 5
-                        }
+                        Projection = new Projection { ProjectionType = ProjectionType.ALL }
                     }
                 },
                 BillingMode = BillingMode.PAY_PER_REQUEST
@@ -80,14 +76,14 @@ class Program
 
             // Wait for table to be active
             Console.WriteLine("Waiting for table to become active...");
-            await WaitForTableToBecomeActive(client, "InvoiceAppDev");
+            await WaitForTableToBecomeActive(client, TABLE_NAME);
 
-            Console.WriteLine("✅ DynamoDB table 'InvoiceAppDev' created successfully!");
+            Console.WriteLine($"DynamoDB table '{TABLE_NAME}' created successfully!");
             Console.WriteLine($"Table Status: {response.TableDescription.TableStatus}");
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"❌ Error creating DynamoDB table: {ex.Message}");
+            Console.Error.WriteLine($"Error creating DynamoDB table: {ex.Message}");
             Environment.Exit(1);
         }
     }

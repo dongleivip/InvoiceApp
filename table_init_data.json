@@ -1,0 +1,78 @@
+{
+  "Dev_InvoiceApp": [
+    {
+      "PutRequest": {
+        "Item": {
+          "EntityType": {
+            "S": "Customer"
+          },
+          "GSI1PK": {
+            "S": "CUST#ALL"
+          },
+          "GSI1SK": {
+            "S": "2026-02-14T22:01:36"
+          },
+          "CreatedAt": {
+            "S": "2026-02-14T14:01:36.199Z"
+          },
+          "SK": {
+            "S": "METADATA"
+          },
+          "Data": {
+            "M": {
+              "taxId": {
+                "S": "tax_10001"
+              },
+              "address": {
+                "S": "北京市昌平区100号"
+              }
+            }
+          },
+          "PK": {
+            "S": "CUST#522d908ebfb042c89c385787c4f5c263"
+          },
+          "UpdatedAt": {
+            "S": "2026-02-14T14:01:36.199Z"
+          },
+          "Name": {
+            "S": "客户名称"
+          },
+          "Contact": {
+            "S": "10010"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "GSI1PK": {
+            "S": "CUST#ALL"
+          },
+          "GSI1SK": {
+            "S": "2026-02-02T12:20:31"
+          },
+          "SK": {
+            "S": "METADATA"
+          },
+          "Data": {
+            "M": {
+              "address": {
+                "S": "西安市区"
+              }
+            }
+          },
+          "PK": {
+            "S": "CUST#123"
+          },
+          "Contact": {
+            "S": "10010"
+          },
+          "Name": {
+            "S": "西安商贸"
+          }
+        }
+      }
+    }
+  ]
+}

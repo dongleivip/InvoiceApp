@@ -13,10 +13,10 @@ echo "LocalStack is ready. Creating DynamoDB table..."
 
 # Create DynamoDB table for Invoice App
 aws --endpoint-url=http://localhost:4566 dynamodb create-table \
-    --table-name InvoiceAppDev \
+    --table-name Dev_InvoiceApp \
     --attribute-definitions \
-        AttributeName=pk,AttributeType=S \
-        AttributeName=sk,AttributeType=S \
+        AttributeName=PK,AttributeType=S \
+        AttributeName=SK,AttributeType=S \
         AttributeName=gsi_pk,AttributeType=S \
         AttributeName=gsi_sk,AttributeType=S \
     --key-schema \

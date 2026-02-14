@@ -32,7 +32,9 @@ docker-compose --profile init up db-initializer
 这个命令会：
 - 自动构建并运行 .NET 初始化工具
 - 等待 LocalStack 准备就绪
-- 创建 DynamoDB 表 `InvoiceAppDev`
+- 创建 DynamoDB 表:
+  - dev: `Dev_InvoiceApp`
+  - prod: `Prod_InvoiceApp`
 
 #### 方式二：使用脚本（需要 AWS CLI）
 
@@ -69,31 +71,13 @@ curl http://localhost:5000/customers
 # 创建客户
 curl -X POST http://localhost:5000/customers \
   -H "Content-Type: application/json" \
-  -d '{"name":"Test Customer","email":"test@example.com"}'
+  -d '{"name":"Customer Name","address":"No 101, Kings St, Xyz City"}'
 ```
 
 ### 停止服务
 
 ```bash
 docker-compose down
-```
-
-## 项目结构
-
-```
-invoice-app/
-├── invoice-api/                    # 主 API 项目
-│   ├── Program.cs                  # API 端点和配置
-│   ├── Dockerfile                  # Docker 镜像配置
-│   ├── appsettings.json           # 应用配置
-│   └── appsettings.Development.json # 开发环境配置
-├── InitializeLocalDb/              # 数据库初始化工具
-│   ├── Program.cs                  # 初始化逻辑
-│   └── InitializeLocalDb.csproj    # 项目文件
-├── docker-compose.yml              # Docker Compose 配置
-├── setup-local-db.sh               # AWS CLI 初始化脚本
-├── setup-local-db-dotnet.sh        # .NET 初始化脚本
-└── .localstack/                    # LocalStack 数据持久化目录
 ```
 
 ## 技术栈
@@ -132,14 +116,54 @@ invoice-app/
 
 ### DynamoDB 单表设计
 
-表名：`InvoiceAppDev`
+表名：`Dev_InvoiceApp`
 
-- **主键**: `pk` (分区键) + `sk` (排序键)
+- **主键**: `PK` (分区键) + `SK` (排序键)
 - **GSI1**: `gsi_pk` + `gsi_sk`
 
 实体类型：
-- 客户: `pk=CUSTOMER#{id}`, `sk=CUSTOMER#{id}`
-- 发票: `pk=INVOICE#{id}`, `sk=INVOICE#{id}`, `gsi_pk=CUSTOMER#{customerId}`, `gsi_sk=INVOICE#{date}`
+- 客户(Customer): `PK=CUST#{id}`, `SK=METADATA`, `GSI1PK=CUST#ALL`, `GSI1SK={yyyy-MM-ddTHH:mm:ss}`, `EntityType=Customer`
+- 发票(Invoice): `PK=CUST#{id}`, `SK=INV#{id}`
+
+### DynomoDB Table Schame
+
+Schame 详见 [table_schame.json](./table_schema.json)文件。
+
+### 导出 Table Schame / 创建 Table
+
+工具 awslocal (`brew install awscli-local)
+
+```bash
+awslocal dynamodb describe-table --table-name Dev_InvoiceApp \
+  --query '{
+    TableName: Table.TableName,
+    AttributeDefinitions: Table.AttributeDefinitions,
+    KeySchema: Table.KeySchema,
+    BillingMode: Table.BillingModeSummary.BillingMode,
+    GlobalSecondaryIndexes: Table.GlobalSecondaryIndexes[].{
+        IndexName: IndexName,
+        KeySchema: KeySchema,
+        Projection: Projection
+    }
+  }' > table_schema.json
+```
+
+```bash
+awslocal dynamodb create-table --cli-input-json file://table_schema.json
+```
+
+### 插入初始数据
+
+```bash
+awslocal dynamodb batch-write-item --request-items file://table_init_data.json
+```
+
+将表中数据导出以方便将来重建表：
+
+```bash
+awslocal dynamodb scan --table-name Dev_InvoiceApp \
+  jq '{"Dev_InvoiceApp": [.Items[] | {PutRequest: {Item: .}}]}' > table_init_data.json
+```
 
 ### 环境变量
 
