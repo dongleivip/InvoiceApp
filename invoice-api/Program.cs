@@ -1,18 +1,16 @@
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
-using Amazon.Lambda.APIGatewayEvents;
-using Amazon.Lambda.Core;
+using InvoiceApi.DTO;
 using InvoiceApi.Models;
 using InvoiceApi.Repositories;
 using InvoiceApi.Utils;
-using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add AWS Lambda support
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.RestApi);
 
-// Add DynamoDB service
+// Add DynamoDB service: 注册底层 AWS SDK 客户端
 builder.Services.AddScoped<IAmazonDynamoDB>(provider =>
 {
     var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -25,58 +23,48 @@ builder.Services.AddScoped<IAmazonDynamoDB>(provider =>
     var config = new AmazonDynamoDBConfig();
 
     // Set region
-    var region = configuration["DynamoDB:Region"] ?? "us-east-1";
+    var region = configuration["AWS:Region"] ?? throw new Exception("AWS Region not set");
     config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
-    logger.LogInformation("DynamoDB Region: {Region}", config.RegionEndpoint.SystemName);
+    logger.LogInformation("AWS Region: {Region}", config.RegionEndpoint.SystemName);
 
     // For development environment
     if (environment == "Development")
     {
         // Set LocalStack service URL
-        var serviceUrl = configuration["DynamoDB:ServiceURL"] ?? "http://localhost:4566";
+        var serviceUrl = configuration["DynamoDB:ServiceURL"] ?? throw new Exception("DynamoDB Service URL not set");
         config.ServiceURL = serviceUrl;
-        logger.LogInformation("LocalStack Service URL: {ServiceURL}", config.ServiceURL);
+        logger.LogInformation("DynamoDB Service URL: {ServiceURL}", config.ServiceURL);
     }
 
     // Get credentials from configuration
-    var accessKey = configuration["AWS:AccessKey"];
-    var secretKey = configuration["AWS:SecretKey"];
+    var accessKey = configuration["AWS:AccessKey"] ?? throw new Exception("AWS Access Key not set");
+    var secretKey = configuration["AWS:SecretKey"] ?? throw new Exception("AWS Secret Key not set");
 
-    // Create DynamoDB client with credentials
-    if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
-    {
-        var credentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
-        return new AmazonDynamoDBClient(credentials, config);
-    }
-    else
-    {
-        // Fall back to default credential chain (IAM roles, etc.)
-        logger.LogInformation("Falling back to default AWS credential chain");
-        return new AmazonDynamoDBClient(config);
-    }
+    var credentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
+    return new AmazonDynamoDBClient(credentials, config);
 });
 
 // Configure repositories
-builder.Services.AddScoped<IDynamoRepository<Customer>>(provider =>
+// 注册 DynamoDBContext (用于对象映射)
+builder.Services.AddScoped<IDynamoDBContext, DynamoDBContext>(sp =>
 {
-    var dynamoDbClient = provider.GetRequiredService<IAmazonDynamoDB>();
-    var configuration = provider.GetRequiredService<IConfiguration>();
-    return new DynamoRepository<Customer>(dynamoDbClient, configuration);
+    var client = sp.GetRequiredService<IAmazonDynamoDB>();
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var prefix = configuration["DynamoDb:TableNamePrefix"] ??  throw new Exception("DynamoDB TableNamePrefix not set");
+
+    var dbContext = new DynamoDBContextBuilder()
+        .WithDynamoDBClient(() => client)
+        .ConfigureContext(cfg => cfg.TableNamePrefix = prefix)
+        .Build();
+
+    return dbContext;
 });
 
-builder.Services.AddScoped<IDynamoRepository<Invoice>>(provider =>
-{
-    var dynamoDbClient = provider.GetRequiredService<IAmazonDynamoDB>();
-    var configuration = provider.GetRequiredService<IConfiguration>();
-    return new DynamoRepository<Invoice>(dynamoDbClient, configuration);
-});
-
-builder.Services.AddScoped<IInvoiceRepository>(provider =>
-{
-    var dynamoDbClient = provider.GetRequiredService<IAmazonDynamoDB>();
-    var configuration = provider.GetRequiredService<IConfiguration>();
-    return new InvoiceRepository(dynamoDbClient, configuration);
-});
+// 注册通用泛型仓储
+builder.Services.AddScoped(typeof(IDynamoRepository<>), typeof(DynamoRepository<>));
+// 注册特定业务仓储
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 
 var app = builder.Build();
 
@@ -84,7 +72,7 @@ var app = builder.Build();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 // Enhanced health check endpoint
-app.MapGet("/healthz", async (IDynamoRepository<Customer> customerRepo) =>
+app.MapGet("/healthz", async (ICustomerRepository customerRepo) =>
 {
     try
     {
@@ -105,32 +93,43 @@ app.MapGet("/healthz", async (IDynamoRepository<Customer> customerRepo) =>
 });
 
 // Customer endpoints
-app.MapGet("/customers", async (IDynamoRepository<Customer> customerRepo) =>
+app.MapGet("/customers", async (ICustomerRepository customerRepo) =>
 {
     var customers = await customerRepo.GetAllAsync();
     return Results.Ok(customers);
 });
 
-app.MapGet("/customers/{id}", async (string id, IDynamoRepository<Customer> customerRepo) =>
+app.MapGet("/customers/{id}", async (string id, ICustomerRepository customerRepo) =>
 {
     var customer = await customerRepo.GetByIdAsync(id);
-    if (customer == null) return Results.NotFound();
-    return Results.Ok(customer);
+    return customer == null ? Results.NotFound() : Results.Ok(customer);
 });
 
-app.MapPost("/customers", async (Customer customer, IDynamoRepository<Customer> customerRepo) =>
+app.MapPost("/customers", async (CreateCustomerRequest request, IDynamoRepository<Customer> customerRepo) =>
 {
-    if (!ValidationHelper.IsValidCustomer(customer))
+    if (!ValidationHelper.IsValidCustomer(request))
         return Results.BadRequest("Invalid customer data");
-
-    if (string.IsNullOrEmpty(customer.Id))
-        customer.Id = Guid.NewGuid().ToString();
-
+    
+    // 1. 生成唯一 ID
+    // 使用 N 格式 (无连字符) 使 ID 更简洁，例如 "46f38742..."
+    var customerId = Guid.NewGuid().ToString("N");
+    
+    // 2. 映射 DTO 到实体
+    // 构造函数会处理单表设计的 PK/SK/GSI1 逻辑
+    // (可选) 处理 GSI2 如果希望通过其他字段查询
+    var customer = new Customer(customerId)
+    {
+        Name = request.Name,
+        Contact = request.Contact,
+        Address = request.Address ?? string.Empty,
+        TaxId = request.TaxId ?? string.Empty
+    };
+    
     await customerRepo.CreateAsync(customer);
     return Results.Created($"/customers/{customer.Id}", customer);
 });
 
-app.MapPut("/customers/{id}", async (string id, Customer customer, IDynamoRepository<Customer> customerRepo) =>
+app.MapPut("/customers/{id}", async (string id, CreateCustomerRequest customer, ICustomerRepository customerRepo) =>
 {
     if (id != customer.Id) return Results.BadRequest();
 
@@ -139,35 +138,34 @@ app.MapPut("/customers/{id}", async (string id, Customer customer, IDynamoReposi
 
     var existingCustomer = await customerRepo.GetByIdAsync(id);
     if (existingCustomer == null) return Results.NotFound();
+    
+    existingCustomer.Name = customer.Name;
+    existingCustomer.Contact = customer.Contact;
+    existingCustomer.Address = customer.Address;
+    existingCustomer.TaxId = customer.TaxId;
 
-    await customerRepo.UpdateAsync(customer);
+    await customerRepo.UpdateAsync(existingCustomer);
     return Results.Ok(customer);
 });
 
-app.MapDelete("/customers/{id}", async (string id, IDynamoRepository<Customer> customerRepo) =>
+app.MapDelete("/customers/{id}", async (string id, ICustomerRepository customerRepo) =>
 {
     var existingCustomer = await customerRepo.GetByIdAsync(id);
     if (existingCustomer == null) return Results.NotFound();
 
-    await customerRepo.DeleteAsync(id);
+    await customerRepo.DeleteAsync(existingCustomer.PartitionKey, existingCustomer.SortKey);
     return Results.NoContent();
 });
 
 // Invoice endpoints
-app.MapGet("/invoices", async (IDynamoRepository<Invoice> invoiceRepo) =>
-{
-    var invoices = await invoiceRepo.GetAllAsync();
-    return Results.Ok(invoices);
-});
-
-app.MapGet("/invoices/{id}", async (string id, IDynamoRepository<Invoice> invoiceRepo) =>
+app.MapGet("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =>
 {
     var invoice = await invoiceRepo.GetByIdAsync(id);
     if (invoice == null) return Results.NotFound();
     return Results.Ok(invoice);
 });
 
-app.MapPost("/invoices", async (Invoice invoice, IDynamoRepository<Invoice> invoiceRepo) =>
+app.MapPost("/invoices", async (Invoice invoice, IInvoiceRepository invoiceRepo) =>
 {
     if (!ValidationHelper.IsValidInvoice(invoice))
         return Results.BadRequest("Invalid invoice data");
@@ -179,7 +177,7 @@ app.MapPost("/invoices", async (Invoice invoice, IDynamoRepository<Invoice> invo
     return Results.Created($"/invoices/{invoice.Id}", invoice);
 });
 
-app.MapPut("/invoices/{id}", async (string id, Invoice invoice, IDynamoRepository<Invoice> invoiceRepo) =>
+app.MapPut("/invoices/{id}", async (string id, Invoice invoice, IInvoiceRepository invoiceRepo) =>
 {
     if (id != invoice.Id) return Results.BadRequest();
 
@@ -193,19 +191,19 @@ app.MapPut("/invoices/{id}", async (string id, Invoice invoice, IDynamoRepositor
     return Results.Ok(invoice);
 });
 
-app.MapDelete("/invoices/{id}", async (string id, IDynamoRepository<Invoice> invoiceRepo) =>
+app.MapDelete("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =>
 {
     var existingInvoice = await invoiceRepo.GetByIdAsync(id);
     if (existingInvoice == null) return Results.NotFound();
 
-    await invoiceRepo.DeleteAsync(id);
+    await invoiceRepo.DeleteAsync(existingInvoice.PartitionKey, existingInvoice.SortKey);
     return Results.NoContent();
 });
 
 // Get invoices for a specific customer
 app.MapGet("/customers/{customerId}/invoices", async (string customerId, IInvoiceRepository invoiceRepo) =>
 {
-    var customerInvoices = await invoiceRepo.GetByCustomerIdAsync(customerId);
+    var customerInvoices = await invoiceRepo.GetCustomerInvoicesAsync(customerId);
     return Results.Ok(customerInvoices);
 });
 

@@ -1,18 +1,12 @@
+using Amazon.DynamoDBv2.DocumentModel;
 using InvoiceApi.Models;
 
 namespace InvoiceApi.Repositories;
 
-public interface IDynamoRepository<T> where T : class
+public interface IDynamoRepository<T> where T : DataEntity
 {
-    Task<T?> GetByIdAsync(string id);
-    Task<IEnumerable<T>> GetAllAsync();
-    Task CreateAsync(T item);
-    Task UpdateAsync(T item);
-    Task DeleteAsync(string id);
-}
-
-// Additional interface for invoice-specific queries
-public interface IInvoiceRepository
-{
-    Task<IEnumerable<Invoice>> GetByCustomerIdAsync(string customerId);
+    Task<T?> GetAsync(string pk, string sk);
+    Task CreateAsync(T entity);
+    Task DeleteAsync(string pk, string sk);
+    Task<IEnumerable<T>> QueryAsync(string pk, QueryOperationConfig?  config = null);
 }

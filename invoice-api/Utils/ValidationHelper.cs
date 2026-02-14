@@ -1,14 +1,13 @@
+using InvoiceApi.DTO;
 using InvoiceApi.Models;
 
 namespace InvoiceApi.Utils;
 
 public static class ValidationHelper
 {
-    public static bool IsValidCustomer(Customer customer)
+    public static bool IsValidCustomer(CreateCustomerRequest customer)
     {
-        return !string.IsNullOrWhiteSpace(customer.Name) &&
-               !string.IsNullOrWhiteSpace(customer.Email) &&
-               !string.IsNullOrWhiteSpace(customer.Address);
+        return !string.IsNullOrWhiteSpace(customer.Name);
     }
 
     public static bool IsValidInvoice(Invoice invoice)
@@ -16,6 +15,6 @@ public static class ValidationHelper
         return !string.IsNullOrWhiteSpace(invoice.CustomerId) &&
                !string.IsNullOrWhiteSpace(invoice.CustomerName) &&
                invoice.Amount > 0 &&
-               invoice.IssueDate != default(DateTime);
+               invoice.IssueDate != default;
     }
 }

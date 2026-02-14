@@ -1,64 +1,64 @@
-using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 using InvoiceApi.Models;
-using Microsoft.Extensions.Configuration;
 
 namespace InvoiceApi.Repositories;
 
 public class InvoiceRepository : IInvoiceRepository
 {
-    private readonly IAmazonDynamoDB _dynamoDbClient;
-    private readonly string _tableName;
-    private readonly string _partitionKeyField;
-    private readonly string _entityTypeField;
-    private readonly string _gsiPartitionKeyField;
+    private readonly IDynamoRepository<Invoice> _repository;
 
-    public InvoiceRepository(IAmazonDynamoDB dynamoDbClient, IConfiguration configuration)
+    public InvoiceRepository(IDynamoRepository<Invoice> repository)
     {
-        _dynamoDbClient = dynamoDbClient;
-        _tableName = configuration["DynamoDB:TableName"] ?? "InvoiceApp";
-        _partitionKeyField = configuration["DynamoDB:PartitionKeyField"] ?? "pk";
-        _entityTypeField = configuration["DynamoDB:EntityTypeField"] ?? "entity_type";
-        _gsiPartitionKeyField = configuration["DynamoDB:GsiPartitionKeyField"] ?? "gsi_pk";
+        _repository = repository;
     }
 
-    public async Task<IEnumerable<Invoice>> GetByCustomerIdAsync(string customerId)
+    public async Task<Invoice?> GetByIdAsync(string invoiceId)
     {
-        var table = Table.LoadTable(_dynamoDbClient, _tableName);
-
-        // Query using GSI for customer-specific invoices
-        var search = table.Query(new QueryFilter(_gsiPartitionKeyField, QueryOperator.Equal, $"INVOICE#{customerId}"));
-        var documentList = await search.GetRemainingAsync();
-
-        var results = new List<Invoice>();
-
-        foreach (var document in documentList)
-        {
-            if (document[_entityTypeField].AsString() == "INVOICE")
-            {
-                var invoice = new Invoice
-                {
-                    Id = ExtractIdFromKey(document[_partitionKeyField].AsString()),
-                    CustomerId = customerId,
-                    CustomerName = document.ContainsKey("CustomerName") ? document["CustomerName"].AsString() : "",
-                    Amount = document.ContainsKey("Amount") ? decimal.Parse(document["Amount"].AsString()) : 0,
-                    IssueDate = document.ContainsKey("IssueDate") ? DateTime.Parse(document["IssueDate"].AsString()) : DateTime.MinValue
-                };
-
-                results.Add(invoice);
-            }
-        }
-
-        return results;
+        return await _repository.GetAsync($"INV#{invoiceId}", "METADATA");
     }
 
-    private string ExtractIdFromKey(string key)
+    public async Task<IEnumerable<Invoice>> GetCustomerInvoicesAsync(string customerId)
     {
-        // Assuming the key format is ENTITYTYPE#ID
-        if (key.Contains('#'))
+        // 利用通用 QueryAsync 查询该分区(customerId)下的所有订单
+        var config = new QueryOperationConfig
         {
-            return key.Split('#')[1];
+            // 比如只查以 INV# 开头的排序键
+            Filter = new QueryFilter("SK", QueryOperator.BeginsWith, "INV#")
+        };
+
+        return await _repository.QueryAsync($"CUST#{customerId}", config);
+    }
+
+    public async Task CreateAsync(Invoice invoice)
+    {
+        if (string.IsNullOrEmpty(invoice.Id))
+        {
+            invoice.Id = Guid.NewGuid().ToString();
         }
-        return key;
+
+        // 设置时间戳
+        var now = DateTime.Now;
+        invoice.CreatedAt = now;
+        invoice.UpdatedAt = now;
+
+        // 设置 GSI 键值
+        invoice.Gsi1Pk = $"INV#{invoice.CustomerId}"; // 按客户 ID 分组
+        invoice.Gsi1Sk = now.ToString("yyyy-MM-ddTHH:mm:ss"); // 按日期排序
+
+        await _repository.CreateAsync(invoice);
+    }
+
+    public async Task UpdateAsync(Invoice invoice)
+    {
+        // 更新时间戳
+        invoice.UpdatedAt = DateTime.Now;
+
+        // 只需保存实体，DynamoDB 上下文会处理更新
+        await _repository.CreateAsync(invoice); // 使用 CreateAsync，DynamoDB 的 SaveAsync 会覆盖现有项
+    }
+
+    public async Task DeleteAsync(string pk, string sk)
+    {
+        await _repository.DeleteAsync(pk, sk);
     }
 }

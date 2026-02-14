@@ -1,0 +1,20 @@
+### GET check system healthy
+GET http://localhost:5000/health
+Accept: application/json
+#Authorization: Bearer {{token}}
+
+### GET all customers
+GET http://localhost:5000/customers
+Accept: application/json
+
+
+### POST create a customer
+POST http://localhost:5000/customers
+Content-Type: application/json
+
+{
+  "name": "客户名称",
+  "contact": "10010",
+  "address": "北京市昌平区100号",
+  "taxId" : "tax_10001"
+}

@@ -2,10 +2,13 @@
 .DS_Store
 
 ## dotnet
-
 **/bin
 **/obj
 
+*.user
+
+## Jetbrains
+.idea
 
 ## LocalStack cache
 .localstack

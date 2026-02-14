@@ -3,6 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "invoice-api", "invoice-api", "{E19BC7AF-0F88-58CD-755D-832FB3049752}"
+	ProjectSection(SolutionItems) = preProject
+		test-api.http = test-api.http
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvoiceApi", "invoice-api\InvoiceApi.csproj", "{E6BA4701-A43B-2609-B886-A83958C40209}"
 EndProject
