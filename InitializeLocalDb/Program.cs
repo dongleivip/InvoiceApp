@@ -54,7 +54,9 @@ class Program
                     new AttributeDefinition { AttributeName = "PK", AttributeType = ScalarAttributeType.S },
                     new AttributeDefinition { AttributeName = "SK", AttributeType = ScalarAttributeType.S },
                     new AttributeDefinition { AttributeName = "GSI1PK", AttributeType = ScalarAttributeType.S },
-                    new AttributeDefinition { AttributeName = "GSI1SK", AttributeType = ScalarAttributeType.S }
+                    new AttributeDefinition { AttributeName = "GSI1SK", AttributeType = ScalarAttributeType.S },
+                    new AttributeDefinition { AttributeName = "GSI2PK", AttributeType = ScalarAttributeType.S },
+                    new AttributeDefinition { AttributeName = "GSI2SK", AttributeType = ScalarAttributeType.S }
                 },
                 GlobalSecondaryIndexes = new List<GlobalSecondaryIndex>
                 {
@@ -65,6 +67,16 @@ class Program
                         {
                             new KeySchemaElement { AttributeName = "GSI1PK", KeyType = KeyType.HASH },
                             new KeySchemaElement { AttributeName = "GSI1SK", KeyType = KeyType.RANGE }
+                        },
+                        Projection = new Projection { ProjectionType = ProjectionType.ALL }
+                    },
+                    new GlobalSecondaryIndex
+                    {
+                        IndexName = "GSI2",
+                        KeySchema = new List<KeySchemaElement>
+                        {
+                            new KeySchemaElement { AttributeName = "GSI2PK", KeyType = KeyType.HASH },
+                            new KeySchemaElement { AttributeName = "GSI2SK", KeyType = KeyType.RANGE }
                         },
                         Projection = new Projection { ProjectionType = ProjectionType.ALL }
                     }

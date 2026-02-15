@@ -175,11 +175,17 @@ awslocal dynamodb create-table --cli-input-json file://table_schema.json
 awslocal dynamodb batch-write-item --request-items file://table_init_data.json
 ```
 
+验证插入表的中数据
+
+```bash
+awslocal dynamodb scan --table-name Dev_InvoiceApp --select "COUNT"
+```
+
 将表中数据导出以方便将来重建表：
 
 ```bash
 awslocal dynamodb scan --table-name Dev_InvoiceApp \
-  jq '{"Dev_InvoiceApp": [.Items[] | {PutRequest: {Item: .}}]}' > table_init_data.json
+  | jq '{"Dev_InvoiceApp": [.Items[] | {PutRequest: {Item: .}}]}' > table_init_data.json
 ```
 
 ### 环境变量

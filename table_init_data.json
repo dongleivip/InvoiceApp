@@ -4,6 +4,104 @@
       "PutRequest": {
         "Item": {
           "EntityType": {
+            "S": "Invoice"
+          },
+          "GSI1PK": {
+            "S": "CUST#522d908ebfb042c89c385787c4f5c263"
+          },
+          "GSI2SK": {
+            "S": "METADATA"
+          },
+          "Amount": {
+            "N": "1002.34"
+          },
+          "GSI1SK": {
+            "S": "INV#26-02-15#202602151825455052759"
+          },
+          "CreatedAt": {
+            "S": "2026-02-15T10:26:39.396Z"
+          },
+          "SK": {
+            "S": "INV#2026-02-15#202602151825455052759"
+          },
+          "IssueDate": {
+            "S": "2026-02-15"
+          },
+          "Data": {
+            "M": {
+              "deliveryAddress": {
+                "S": "送货地址 (可为空) + 更新"
+              },
+              "customerName": {
+                "S": "客户名称 + 1"
+              }
+            }
+          },
+          "PK": {
+            "S": "CUST#522d908ebfb042c89c385787c4f5c263"
+          },
+          "GSI2PK": {
+            "S": "INV#202602151825455052759"
+          },
+          "UpdatedAt": {
+            "S": "2026-02-15T10:26:39.396Z"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "EntityType": {
+            "S": "Invoice"
+          },
+          "GSI1PK": {
+            "S": "CUST#522d908ebfb042c89c385787c4f5c263"
+          },
+          "GSI2SK": {
+            "S": "METADATA"
+          },
+          "Amount": {
+            "N": "1001.23"
+          },
+          "GSI1SK": {
+            "S": "INV#26-02-15#202602151825531215208"
+          },
+          "CreatedAt": {
+            "S": "2026-02-15T10:25:53.122Z"
+          },
+          "SK": {
+            "S": "INV#2026-02-15#202602151825531215208"
+          },
+          "IssueDate": {
+            "S": "2026-02-15"
+          },
+          "Data": {
+            "M": {
+              "deliveryAddress": {
+                "S": "送货地址 (可为空)"
+              },
+              "customerName": {
+                "S": "客户名称"
+              }
+            }
+          },
+          "PK": {
+            "S": "CUST#522d908ebfb042c89c385787c4f5c263"
+          },
+          "GSI2PK": {
+            "S": "INV#202602151825531215208"
+          },
+          "UpdatedAt": {
+            "S": "2026-02-15T10:25:53.122Z"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "EntityType": {
             "S": "Customer"
           },
           "GSI1PK": {
