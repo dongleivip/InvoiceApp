@@ -1,7 +1,3 @@
-using Amazon;
-using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.DataModel;
-using Amazon.Runtime;
 using InvoiceApi.Common;
 using InvoiceApi.DTO;
 using InvoiceApi.Models;
@@ -14,65 +10,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.RestApi);
 
 // Add DynamoDB service: 注册底层 AWS SDK 客户端
-builder.Services.AddScoped<IAmazonDynamoDB>(provider =>
-{
-    var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-    var configuration = provider.GetRequiredService<IConfiguration>();
-    var logger = provider.GetRequiredService<ILogger<Program>>();
+builder.Services.AddDynamoDbClient();
 
-    logger.LogInformation("Initializing DynamoDB client. Environment: {Environment}", environment ?? "Not set");
-
-    // Common configuration for both environments
-    var config = new AmazonDynamoDBConfig();
-
-    // Set region
-    var region = configuration["AWS:Region"] ?? throw new Exception("AWS Region not set");
-    config.RegionEndpoint = RegionEndpoint.GetBySystemName(region);
-    logger.LogInformation("AWS Region: {Region}", config.RegionEndpoint.SystemName);
-
-    // For development environment
-    if (environment == "Development")
-    {
-        // Set LocalStack service URL
-        var serviceUrl = configuration["DynamoDB:ServiceURL"] ?? throw new Exception("DynamoDB Service URL not set");
-        config.ServiceURL = serviceUrl;
-        logger.LogInformation("DynamoDB Service URL: {ServiceURL}", config.ServiceURL);
-    }
-
-    // Get credentials from configuration
-    var accessKey = configuration["AWS:AccessKey"] ?? throw new Exception("AWS Access Key not set");
-    var secretKey = configuration["AWS:SecretKey"] ?? throw new Exception("AWS Secret Key not set");
-
-    var credentials = new BasicAWSCredentials(accessKey, secretKey);
-    return new AmazonDynamoDBClient(credentials, config);
-});
+// 注册 DynamoDBContext 和 Repositories
+builder.Services.AddDynamoDbContext();
+builder.Services.AddGenericDynamoRepository();
+builder.Services.AddBusinessRepositories();
 
 // 注册健康检查服务
-builder.Services.AddHealthChecks()
-    .AddCheck<DynamoDbHealthCheck>("DynamoDB_Check");
-
-// Configure repositories
-// 注册 DynamoDBContext (用于对象映射)
-builder.Services.AddScoped<IDynamoDBContext, DynamoDBContext>(sp =>
-{
-    var client = sp.GetRequiredService<IAmazonDynamoDB>();
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var prefix = configuration["DynamoDb:TableNamePrefix"] ?? throw new Exception("DynamoDB TableNamePrefix not set");
-
-    var dbContext = new DynamoDBContextBuilder()
-        .WithDynamoDBClient(() => client)
-        .ConfigureContext(cfg => cfg.TableNamePrefix = prefix)
-        .Build();
-
-    return dbContext;
-});
-
-// 注册通用泛型仓储
-builder.Services.AddScoped(typeof(IDynamoRepository<>), typeof(DynamoRepository<>));
-
-// 注册特定业务仓储
-builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
-builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+builder.Services.AddHealthChecks().AddCheck<DynamoDbHealthCheck>("DynamoDB_Check");
 
 var app = builder.Build();
 
