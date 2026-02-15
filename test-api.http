@@ -1,3 +1,7 @@
+### GET check system is ready
+GET http://localhost:5000/ready
+Accept: application/json
+
 ### GET check system healthy
 GET http://localhost:5000/health
 Accept: application/json

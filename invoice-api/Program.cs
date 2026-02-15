@@ -2,6 +2,7 @@ using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
 using Amazon.Runtime;
+using InvoiceApi.Common;
 using InvoiceApi.DTO;
 using InvoiceApi.Models;
 using InvoiceApi.Repositories;
@@ -46,6 +47,10 @@ builder.Services.AddScoped<IAmazonDynamoDB>(provider =>
     return new AmazonDynamoDBClient(credentials, config);
 });
 
+// 注册健康检查服务
+builder.Services.AddHealthChecks()
+    .AddCheck<DynamoDbHealthCheck>("DynamoDB_Check");
+
 // Configure repositories
 // 注册 DynamoDBContext (用于对象映射)
 builder.Services.AddScoped<IDynamoDBContext, DynamoDBContext>(sp =>
@@ -73,6 +78,9 @@ var app = builder.Build();
 
 // Readiness check
 app.MapGet("/ready", () => Results.Ok(new { status = "ready", timestamp = DateTime.Now }));
+
+// 健康检查端点
+app.MapHealthChecks("/health");
 
 // Customer endpoints
 app.MapGet("/customers", async (ICustomerRepository customerRepo) =>
