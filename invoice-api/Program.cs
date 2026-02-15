@@ -89,7 +89,7 @@ app.MapGet("/customers/{id}", async (string id, ICustomerRepository customerRepo
         : Results.Ok(ResultHelper.Success(customer.ToResponseModel()));
 });
 
-app.MapPost("/customers", async (CreateCustomerRequest request, IDynamoRepository<Customer> customerRepo) =>
+app.MapPost("/customers", async (CreateCustomerRequest request, ICustomerRepository customerRepo) =>
 {
     if (!ValidationHelper.IsValidCustomer(request))
     {
@@ -102,13 +102,12 @@ app.MapPost("/customers", async (CreateCustomerRequest request, IDynamoRepositor
 
     // 2. 映射 DTO 到实体
     // 构造函数会处理单表设计的 PK/SK/GSI1 逻辑
-    // (可选) 处理 GSI2 如果希望通过其他字段查询
     var customer = new Customer(customerId)
     {
         Name = request.name,
         Contact = request.contact,
-        Address = request.address ?? string.Empty,
-        TaxId = request.taxId ?? string.Empty,
+        Address = request.address,
+        TaxId = request.taxId,
     };
 
     await customerRepo.CreateAsync(customer);

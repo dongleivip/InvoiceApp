@@ -18,16 +18,17 @@ public class Invoice : DataEntity
         SortKey = $"INV#{dateString}#{invoiceId}";
         EntityType = "Invoice";
 
-        // GSI
+        // GSI1 索引用来按日期范围来查询 Invoice
         Gsi1Pk = "INV#ALL";
         Gsi1Sk = $"{dateString}#{invoiceId}";
 
-        // GSI2 索引用来实现仅用InvoiceId来查询Invoice
+        // GSI2 索引用来实现仅用 InvoiceId 来查询 Invoice
         Gsi2Pk = $"INV#{invoiceId}";
         Gsi2Sk = "METADATA";
 
-        CreatedAt = DateTime.Now;
-        UpdatedAt = DateTime.Now;
+        var now = DateTime.Now;
+        CreatedAt = now;
+        UpdatedAt = now;
     }
 
     [DynamoDBGlobalSecondaryIndexHashKey("GSI2", AttributeName = "GSI2PK")]

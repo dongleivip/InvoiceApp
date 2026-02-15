@@ -10,6 +10,8 @@ public class Customer : DataEntity
 
     public Customer(string customerId)
     {
+        var now = DateTime.Now;
+
         // 基础建
         PartitionKey = $"CUST#{customerId}";
         SortKey = "METADATA"; // 客户元数据固定 SK
@@ -18,7 +20,10 @@ public class Customer : DataEntity
         // GSI1: 用于全部检索 (List All)
         // 将所有客户放在同一个虚拟分区 "CUST#ALL" 下
         Gsi1Pk = "CUST#ALL";
-        Gsi1Sk = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+        Gsi1Sk = now.ToString("yyyy-MM-ddTHH:mm:ss");
+
+        CreatedAt = now;
+        UpdatedAt = now;
     }
 
     // --- 辅助属性 ---
@@ -32,11 +37,11 @@ public class Customer : DataEntity
     [DynamoDBProperty("Contact")]
     public string? Contact { get; set; }
 
-    // --- GSI2 定义 (需要在 AWS 创建表时配置) ---
-    [DynamoDBGlobalSecondaryIndexHashKey("GSI2PK")]
+    // --- GSI2  (目前未给Customer启用)
+    [DynamoDBGlobalSecondaryIndexHashKey("GSI2", AttributeName = "GSI2PK")]
     public string Gsi2Pk { get; set; }
 
-    [DynamoDBGlobalSecondaryIndexRangeKey("GSI2SK")]
+    [DynamoDBGlobalSecondaryIndexRangeKey("GSI2", AttributeName = "GSI2SK")]
     public string Gsi2Sk { get; set; }
 
     // 通过 Data 字段存储用户具体属性
