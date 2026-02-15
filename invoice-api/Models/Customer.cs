@@ -23,7 +23,7 @@ public class Customer : DataEntity
 
     // --- 辅助属性 ---
     [DynamoDBIgnore]
-    public string Id => this.PartitionKey?.Split('#').LastOrDefault() ?? string.Empty;
+    public string Id => PartitionKey?.Split('#').LastOrDefault() ?? string.Empty;
 
     // 将常用搜索字段提升为顶层属性，方便在 DynamoDB 控制台直接查看
     [DynamoDBProperty("Name")]

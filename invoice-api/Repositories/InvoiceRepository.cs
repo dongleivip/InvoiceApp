@@ -33,17 +33,19 @@ public class InvoiceRepository : IInvoiceRepository
         return results.FirstOrDefault();
     }
 
-
     public async Task<IEnumerable<Invoice>> GetByCustomerAsync(string customerId)
     {
-        // 利用通用 QueryAsync 查询该分区(customerId)下的所有订单
-        var config = new QueryOperationConfig
-        {
-            // 比如只查以 INV# 开头的排序键
-            Filter = new QueryFilter("SK", QueryOperator.BeginsWith, "INV#"),
-        };
+        // 利用通用 QueryAsync 查询该分区(customerId)下的所有Invoice
+        // 只查以 SK 下 INV# 开头的
+        var pk = $"CUST#{customerId}";
+        var filter = new QueryFilter();
 
-        return await _repository.QueryAsync($"CUST#{customerId}", config);
+        // 尽管在QueryAsync() 中传入了 pk 但是还是要加入filter中才行
+        filter.AddCondition("PK", QueryOperator.Equal, pk);
+        filter.AddCondition("SK", QueryOperator.BeginsWith, "INV#");
+
+        var config = new QueryOperationConfig { Filter = filter };
+        return await _repository.QueryAsync(pk, config);
     }
 
     /// <summary>

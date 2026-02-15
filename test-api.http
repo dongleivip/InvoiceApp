@@ -43,20 +43,24 @@ Content-Type: application/json
 
 ### Put update a invoice
 
-PUT http://localhost:5000/invoices/202602151725178555613
+PUT http://localhost:5000/invoices/202602151825455052759
 Accept: application/json
 Content-Type: application/json
 
 {
   "customerId": "522d908ebfb042c89c385787c4f5c263",
-  "invoiceId": "202602151725178555613",
+  "invoiceId": "202602151825455052759",
   "customerName": "客户名称 + 1",
   "amount" :  1002.34,
   "deliveryAddress": "送货地址 (可为空) + 更新"
 }
 
 ### GET customer's invoice
-GET http://localhost:5000/customers/522d908ebfb042c89c385787c4f5c263/invoices/202602151725178555613/2026-02-15
+GET http://localhost:5000/customers/522d908ebfb042c89c385787c4f5c263/invoices/202602151825455052759/2026-02-15
+Accept: application/json
+
+### GET customer's all invoices
+GET http://localhost:5000/customers/522d908ebfb042c89c385787c4f5c263/invoices
 Accept: application/json
 
 ### DELETE delete a invoice

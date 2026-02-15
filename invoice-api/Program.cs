@@ -78,7 +78,7 @@ app.MapGet("/ready", () => Results.Ok(new { status = "ready", timestamp = DateTi
 app.MapGet("/customers", async (ICustomerRepository customerRepo) =>
 {
     var customers = await customerRepo.GetAllAsync();
-    return Results.Ok(ResultHelper.Success(customers));
+    return Results.Ok(ResultHelper.Success(customers.Select(c => c.ToResponseModel())));
 });
 
 app.MapGet("/customers/{id}", async (string id, ICustomerRepository customerRepo) =>
@@ -86,7 +86,7 @@ app.MapGet("/customers/{id}", async (string id, ICustomerRepository customerRepo
     var customer = await customerRepo.GetByIdAsync(id);
     return customer == null
         ? Results.NotFound()
-        : Results.Ok(ResultHelper.Success(customer));
+        : Results.Ok(ResultHelper.Success(customer.ToResponseModel()));
 });
 
 app.MapPost("/customers", async (CreateCustomerRequest request, IDynamoRepository<Customer> customerRepo) =>
@@ -139,7 +139,7 @@ app.MapPut("/customers/{id}", async (string id, CreateCustomerRequest customer, 
     existingCustomer.TaxId = customer.taxId;
 
     await customerRepo.UpdateAsync(existingCustomer);
-    return Results.Ok(ResultHelper.Success(existingCustomer));
+    return Results.Ok(ResultHelper.Success(existingCustomer.ToResponseModel()));
 });
 
 app.MapDelete("/customers/{id}", async (string id, ICustomerRepository customerRepo) =>
@@ -160,7 +160,7 @@ app.MapGet("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =
     var invoice = await invoiceRepo.GetByOnlyIdAsync(id);
     return invoice == null
         ? Results.NotFound()
-        : Results.Ok(ResultHelper.Success(invoice));
+        : Results.Ok(ResultHelper.Success(invoice.ToResponseModel()));
 });
 
 app.MapPost("/invoices", async (CreateInvoiceRequest request, IInvoiceRepository invoiceRepo) =>
@@ -206,7 +206,7 @@ app.MapPut("/invoices/{id}", async (string id, UpdateInvoiceRequest request, IIn
     existingInvoice.DeliveryAddress = request.DeliveryAddress;
 
     await invoiceRepo.UpdateAsync(existingInvoice);
-    return Results.Ok(ResultHelper.Success(existingInvoice));
+    return Results.Ok(ResultHelper.Success(existingInvoice.ToResponseModel()));
 });
 
 app.MapDelete("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =>
@@ -224,7 +224,7 @@ app.MapDelete("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo
 app.MapGet("/customers/{customerId}/invoices", async (string customerId, IInvoiceRepository invoiceRepo) =>
 {
     var customerInvoices = await invoiceRepo.GetByCustomerAsync(customerId);
-    return Results.Ok(ResultHelper.Success(customerInvoices));
+    return Results.Ok(ResultHelper.Success(customerInvoices.Select(c => c.ToResponseModel())));
 });
 
 app.MapGet(
@@ -239,7 +239,7 @@ app.MapGet(
         var invoice = await invoiceRepo.GetByIdAsync(customerId, invoiceId, date.ToString("yyyy-MM-dd"));
         return invoice == null
             ? Results.NotFound()
-            : Results.Ok(ResultHelper.Success(invoice));
+            : Results.Ok(ResultHelper.Success(invoice.ToResponseModel()));
     });
 
 app.Run();

@@ -1,8 +1,8 @@
 namespace InvoiceApi.DTO;
 
-public record CreateInvoiceRequest(
+public record UpdateInvoiceRequest(
+    string InvoiceId,
     string CustomerId,
     string? CustomerName,
-    DateTime IssueDate,
     decimal Amount,
     string? DeliveryAddress);
