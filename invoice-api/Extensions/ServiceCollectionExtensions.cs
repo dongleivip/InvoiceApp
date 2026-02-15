@@ -16,8 +16,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDynamoRepository<T>>(provider =>
         {
             var context = provider.GetRequiredService<IDynamoDBContext>();
-            var configuration = provider.GetRequiredService<IConfiguration>();
-            return new DynamoRepository<T>(context, configuration);
+            return new DynamoRepository<T>(context);
         });
         return services;
     }

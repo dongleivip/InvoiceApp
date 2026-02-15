@@ -29,7 +29,7 @@ public class CustomerRepository : ICustomerRepository
         // 设置时间戳
         customer.UpdatedAt = DateTime.Now;
 
-        await _repository.SaveAsync(customer);
+        await _repository.CreateAsync(customer);
     }
 
     public async Task UpdateAsync(Customer customer)
@@ -40,7 +40,7 @@ public class CustomerRepository : ICustomerRepository
         customer.UpdatedAt = DateTime.Now;
 
         // 只需保存实体，DynamoDB 上下文会处理更新
-        await _repository.SaveAsync(customer);
+        await _repository.CreateAsync(customer);
     }
 
     public async Task<IEnumerable<Customer>> GetAllAsync()

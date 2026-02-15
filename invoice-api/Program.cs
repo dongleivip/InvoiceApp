@@ -71,29 +71,8 @@ builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 
 var app = builder.Build();
 
-// Health check endpoint
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-
-// Enhanced health check endpoint
-app.MapGet("/healthz", async (ICustomerRepository customerRepo) =>
-{
-    try
-    {
-        // Perform a simple database connectivity check
-        await customerRepo.GetAllAsync();
-        return Results.Ok(new
-        {
-            status = "healthy",
-            timestamp = DateTime.UtcNow,
-            service = "Invoice API",
-            database = "connected",
-        });
-    }
-    catch
-    {
-        return Results.StatusCode(503);
-    }
-});
+// Readiness check
+app.MapGet("/ready", () => Results.Ok(new { status = "ready", timestamp = DateTime.Now }));
 
 // Customer endpoints
 app.MapGet("/customers", async (ICustomerRepository customerRepo) =>
@@ -105,7 +84,9 @@ app.MapGet("/customers", async (ICustomerRepository customerRepo) =>
 app.MapGet("/customers/{id}", async (string id, ICustomerRepository customerRepo) =>
 {
     var customer = await customerRepo.GetByIdAsync(id);
-    return customer == null ? Results.NotFound() : Results.Ok(customer);
+    return customer == null
+        ? Results.NotFound()
+        : Results.Ok(ResultHelper.Success(customer));
 });
 
 app.MapPost("/customers", async (CreateCustomerRequest request, IDynamoRepository<Customer> customerRepo) =>
@@ -176,70 +157,89 @@ app.MapDelete("/customers/{id}", async (string id, ICustomerRepository customerR
 // Invoice endpoints
 app.MapGet("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =>
 {
-    var invoice = await invoiceRepo.GetByIdAsync(id);
-    if (invoice == null)
-    {
-        return Results.NotFound();
-    }
-
-    return Results.Ok(ResultHelper.Success(invoice));
+    var invoice = await invoiceRepo.GetByOnlyIdAsync(id);
+    return invoice == null
+        ? Results.NotFound()
+        : Results.Ok(ResultHelper.Success(invoice));
 });
 
-app.MapPost("/invoices", async (Invoice invoice, IInvoiceRepository invoiceRepo) =>
+app.MapPost("/invoices", async (CreateInvoiceRequest request, IInvoiceRepository invoiceRepo) =>
 {
-    if (!ValidationHelper.IsValidInvoice(invoice))
+    if (!ValidationHelper.IsValidInvoice(request))
     {
         return Results.BadRequest("Invalid invoice data");
     }
 
-    if (string.IsNullOrEmpty(invoice.Id))
+    // 时间戳 + 一个4位随机数补齐 (防止同一毫秒内重复)
+    var timeStamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+    var randomPart = new Random().Next(1000, 9999);
+    var invoiceId = $"{timeStamp}{randomPart}";
+
+    var invoice = new Invoice(request.CustomerId,  invoiceId, request.IssueDate)
     {
-        invoice.Id = Guid.NewGuid().ToString();
-    }
+        CustomerName = request.CustomerName,
+        IssueDate = request.IssueDate.ToString("yyyy-MM-dd"),
+        Amount = request.Amount,
+        DeliveryAddress = request.DeliveryAddress,
+    };
 
     await invoiceRepo.CreateAsync(invoice);
-    return Results.Created($"/invoices/{invoice.Id}", invoice);
+    return Results.Created($"/invoices/{invoice.CustomerId}/invoices/{invoiceId}/{invoice.IssueDate}", invoice);
 });
 
-app.MapPut("/invoices/{id}", async (string id, Invoice invoice, IInvoiceRepository invoiceRepo) =>
+app.MapPut("/invoices/{id}", async (string id, UpdateInvoiceRequest request, IInvoiceRepository invoiceRepo) =>
 {
-    if (id != invoice.Id)
+    if (id != request.InvoiceId || !ValidationHelper.IsValidUpdateInvoice(request))
     {
-        return Results.BadRequest();
+        return Results.BadRequest(ResultHelper.BadRequest("Invalid invoice data"));
     }
 
-    if (!ValidationHelper.IsValidInvoice(invoice))
-    {
-        return Results.BadRequest("Invalid invoice data");
-    }
-
-    var existingInvoice = await invoiceRepo.GetByIdAsync(id);
+    var existingInvoice = await invoiceRepo.GetByOnlyIdAsync(id);
     if (existingInvoice == null)
     {
         return Results.NotFound();
     }
 
-    await invoiceRepo.UpdateAsync(invoice);
-    return Results.Ok(ResultHelper.Success(invoice));
+    // Only these fields can be updated
+    existingInvoice.CustomerName = request.CustomerName;
+    existingInvoice.Amount = request.Amount;
+    existingInvoice.DeliveryAddress = request.DeliveryAddress;
+
+    await invoiceRepo.UpdateAsync(existingInvoice);
+    return Results.Ok(ResultHelper.Success(existingInvoice));
 });
 
 app.MapDelete("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =>
 {
-    var existingInvoice = await invoiceRepo.GetByIdAsync(id);
+    var existingInvoice = await invoiceRepo.GetByOnlyIdAsync(id);
     if (existingInvoice == null)
     {
         return Results.NotFound();
     }
 
-    await invoiceRepo.DeleteAsync(existingInvoice.PartitionKey, existingInvoice.SortKey);
+    await invoiceRepo.DeleteByKeyAsync(existingInvoice.PartitionKey, existingInvoice.SortKey);
     return Results.NoContent();
 });
 
-// Get invoices for a specific customer
 app.MapGet("/customers/{customerId}/invoices", async (string customerId, IInvoiceRepository invoiceRepo) =>
 {
-    var customerInvoices = await invoiceRepo.GetCustomerInvoicesAsync(customerId);
+    var customerInvoices = await invoiceRepo.GetByCustomerAsync(customerId);
     return Results.Ok(ResultHelper.Success(customerInvoices));
 });
+
+app.MapGet(
+    "/customer/{customerId}/invoices/{invoiceId}/{issueDate}",
+    async (string customerId, string invoiceId, string issueDate, IInvoiceRepository invoiceRepo) =>
+    {
+        if (!DateTime.TryParse(issueDate, out DateTime date))
+        {
+            return Results.BadRequest(ResultHelper.BadRequest("非法的发票日期格式"));
+        }
+
+        var invoice = await invoiceRepo.GetByIdAsync(customerId, invoiceId, date.ToString("yyyy-MM-dd"));
+        return invoice == null
+            ? Results.NotFound()
+            : Results.Ok(ResultHelper.Success(invoice));
+    });
 
 app.Run();

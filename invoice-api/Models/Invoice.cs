@@ -1,5 +1,7 @@
 namespace InvoiceApi.Models;
 
+using Amazon.DynamoDBv2.DataModel;
+
 public class Invoice : DataEntity
 {
     // 必须保留无参构造函数供 DynamoDB SDK 反序列化使用
@@ -7,20 +9,56 @@ public class Invoice : DataEntity
     {
     }
 
-    public Invoice(string invoiceId)
+    public Invoice(string customerId, string invoiceId, DateTime date)
     {
-        PartitionKey = $"INV#{invoiceId}";
-        SortKey = string.Empty;
-        EntityType = "INVOICE";
+        var dateString = date.ToString("yyyy-MM-dd");
+
+        // Basic Key
+        PartitionKey = $"CUST#{customerId}";
+        SortKey = $"INV#{dateString}#{invoiceId}";
+        EntityType = "Invoice";
+
+        // GSI
+        Gsi1Pk = "INV#ALL";
+        Gsi1Sk = $"{dateString}#{invoiceId}";
+
+        // GSI2 索引用来实现仅用InvoiceId来查询Invoice
+        Gsi2Pk = $"INV#{invoiceId}";
+        Gsi2Sk = "METADATA";
+
+        CreatedAt = DateTime.Now;
+        UpdatedAt = DateTime.Now;
     }
 
-    public string Id { get; set; } = string.Empty;
+    [DynamoDBGlobalSecondaryIndexHashKey("GSI2", AttributeName = "GSI2PK")]
+    public string Gsi2Pk { get; set; }
 
-    public string CustomerId { get; set; } = string.Empty;
+    [DynamoDBGlobalSecondaryIndexRangeKey("GSI2", AttributeName = "GSI2SK")]
+    public string Gsi2Sk { get; set; }
 
-    public string CustomerName { get; set; } = string.Empty;
-
+    [DynamoDBProperty("Amount")]
     public decimal Amount { get; set; }
 
-    public DateTime IssueDate { get; set; }
+    [DynamoDBProperty("IssueDate")]
+    public string IssueDate { get; set; }
+
+    [DynamoDBIgnore]
+    public string? CustomerName
+    {
+        get => ExtractFromData("customerName");
+        set => Data["customerName"] = value;
+    }
+
+    [DynamoDBIgnore]
+    public string? DeliveryAddress
+    {
+        get => ExtractFromData("deliveryAddress");
+        set => Data["deliveryAddress"] = value;
+    }
+
+    [DynamoDBIgnore]
+    public string Id => SortKey?.Split('#').LastOrDefault() ?? string.Empty;
+
+    [DynamoDBIgnore]
+    public string CustomerId => PartitionKey?.Split('#').LastOrDefault() ?? string.Empty;
 }

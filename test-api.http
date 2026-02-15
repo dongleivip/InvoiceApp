@@ -3,11 +3,6 @@ GET http://localhost:5000/health
 Accept: application/json
 #Authorization: Bearer {{token}}
 
-### GET all customers
-GET http://localhost:5000/customers
-Accept: application/json
-
-
 ### POST create a customer
 POST http://localhost:5000/customers
 Content-Type: application/json
@@ -18,3 +13,53 @@ Content-Type: application/json
   "address": "北京市昌平区100号",
   "taxId": "tax_10001"
 }
+
+### GET all customers
+GET http://localhost:5000/customers
+Accept: application/json
+
+### GET specific customer
+GET http://localhost:5000/customers/522d908ebfb042c89c385787c4f5c263
+Accept: application/json
+
+## Invoices
+
+### GET customer's invoices
+GET http://localhost:5000/customers/522d908ebfb042c89c385787c4f5c263/invoices
+Accept: application/json
+
+### POST create a invoice
+POST http://localhost:5000/invoices
+Accept: application/json
+Content-Type: application/json
+
+{
+    "customerId": "522d908ebfb042c89c385787c4f5c263",
+    "customerName": "客户名称",
+    "issueDate": "2026-02-15",
+    "amount" :  1001.23,
+    "deliveryAddress": "送货地址 (可为空)"
+ }
+
+### Put update a invoice
+
+PUT http://localhost:5000/invoices/202602151725178555613
+Accept: application/json
+Content-Type: application/json
+
+{
+  "customerId": "522d908ebfb042c89c385787c4f5c263",
+  "invoiceId": "202602151725178555613",
+  "customerName": "客户名称 + 1",
+  "amount" :  1002.34,
+  "deliveryAddress": "送货地址 (可为空) + 更新"
+}
+
+### GET customer's invoice
+GET http://localhost:5000/customers/522d908ebfb042c89c385787c4f5c263/invoices/202602151725178555613/2026-02-15
+Accept: application/json
+
+### DELETE delete a invoice
+
+DELETE http://localhost:5000/invoices/202602151725178555613
+Accept: application/json

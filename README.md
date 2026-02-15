@@ -121,9 +121,26 @@ docker-compose down
 - **主键**: `PK` (分区键) + `SK` (排序键)
 - **GSI1**: `gsi_pk` + `gsi_sk`
 
-实体类型：
-- 客户(Customer): `PK=CUST#{id}`, `SK=METADATA`, `GSI1PK=CUST#ALL`, `GSI1SK={yyyy-MM-ddTHH:mm:ss}`, `EntityType=Customer`
-- 发票(Invoice): `PK=CUST#{id}`, `SK=INV#{id}`
+| 场景           | PK         | SK               | GSI1PK   | GSI1SK                | EntityType |
+|--------------|------------|------------------|----------|-----------------------|------------|
+| 客户(Customer) | CUST#{cid} | METADATA         | CUST#ALL | {yyyy-MM-ddTHH:mm:ss} | Customer   |
+| 发票(Invoice)  | CUST#{cid} | INV#{date}#{iid} | INV#ALL  | {yyyy-MM-dd}#{iid}    | Invoice   |
+
+Customer:
+- PK (CUST#{cid})
+- SK (METADATA): 一定的值。
+- GSI1PK (CUST#ALL): 将全表所有发票“聚集”在一个虚拟分区，用于查询所有客户。
+- GSI1SK ({datetime}): 在GSI1 内部按照时间排序，支持按时间排列客户。
+
+Invoice: 
+- PK (CUST#{cid}): 将发票与客户放在同一个 Partition。这样在查询某个客户的所有数据时，性能极高。
+- SK (INV#{date}#{iid}):
+  - 以 INV# 开头方便使用 BeginsWith 过滤出所有发票。 
+  - 包含 {date}（建议格式 yyyy-MM-dd）方便在客户分区内进行时间范围查询。
+- GSI1PK (INV#ALL): 将全表所有发票“聚集”在一个虚拟分区，用于跨客户查询。 
+- GSI1SK ({date}#{iid}): 在 GSI1 内部按时间排序，支持全表范围的时间过滤。
+- GSI2PK (INV#{iid}): 允许在没有 cid 和 date 的情况下定位 Invoice。
+- GSI2SK (METADATA): 固定值。
 
 ### DynomoDB Table Schame
 

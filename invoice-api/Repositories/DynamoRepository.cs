@@ -19,7 +19,7 @@ public class DynamoRepository<T> : IDynamoRepository<T>
         return await _context.LoadAsync<T>(pk, sk);
     }
 
-    public async Task SaveAsync(T entity)
+    public async Task CreateAsync(T entity)
     {
         var now = DateTime.Now;
         entity.CreatedAt = now;
