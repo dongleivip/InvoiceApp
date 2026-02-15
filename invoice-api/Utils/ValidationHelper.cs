@@ -7,7 +7,7 @@ public static class ValidationHelper
 {
     public static bool IsValidCustomer(CreateCustomerRequest customer)
     {
-        return !string.IsNullOrWhiteSpace(customer.Name);
+        return !string.IsNullOrWhiteSpace(customer.name);
     }
 
     public static bool IsValidInvoice(Invoice invoice)

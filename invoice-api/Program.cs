@@ -1,5 +1,7 @@
+using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
+using Amazon.Runtime;
 using InvoiceApi.DTO;
 using InvoiceApi.Models;
 using InvoiceApi.Repositories;
@@ -24,7 +26,7 @@ builder.Services.AddScoped<IAmazonDynamoDB>(provider =>
 
     // Set region
     var region = configuration["AWS:Region"] ?? throw new Exception("AWS Region not set");
-    config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
+    config.RegionEndpoint = RegionEndpoint.GetBySystemName(region);
     logger.LogInformation("AWS Region: {Region}", config.RegionEndpoint.SystemName);
 
     // For development environment
@@ -40,7 +42,7 @@ builder.Services.AddScoped<IAmazonDynamoDB>(provider =>
     var accessKey = configuration["AWS:AccessKey"] ?? throw new Exception("AWS Access Key not set");
     var secretKey = configuration["AWS:SecretKey"] ?? throw new Exception("AWS Secret Key not set");
 
-    var credentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
+    var credentials = new BasicAWSCredentials(accessKey, secretKey);
     return new AmazonDynamoDBClient(credentials, config);
 });
 
@@ -50,7 +52,7 @@ builder.Services.AddScoped<IDynamoDBContext, DynamoDBContext>(sp =>
 {
     var client = sp.GetRequiredService<IAmazonDynamoDB>();
     var configuration = sp.GetRequiredService<IConfiguration>();
-    var prefix = configuration["DynamoDb:TableNamePrefix"] ??  throw new Exception("DynamoDB TableNamePrefix not set");
+    var prefix = configuration["DynamoDb:TableNamePrefix"] ?? throw new Exception("DynamoDB TableNamePrefix not set");
 
     var dbContext = new DynamoDBContextBuilder()
         .WithDynamoDBClient(() => client)
@@ -62,6 +64,7 @@ builder.Services.AddScoped<IDynamoDBContext, DynamoDBContext>(sp =>
 
 // 注册通用泛型仓储
 builder.Services.AddScoped(typeof(IDynamoRepository<>), typeof(DynamoRepository<>));
+
 // 注册特定业务仓储
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
@@ -83,7 +86,7 @@ app.MapGet("/healthz", async (ICustomerRepository customerRepo) =>
             status = "healthy",
             timestamp = DateTime.UtcNow,
             service = "Invoice API",
-            database = "connected"
+            database = "connected",
         });
     }
     catch
@@ -96,7 +99,7 @@ app.MapGet("/healthz", async (ICustomerRepository customerRepo) =>
 app.MapGet("/customers", async (ICustomerRepository customerRepo) =>
 {
     var customers = await customerRepo.GetAllAsync();
-    return Results.Ok(customers);
+    return Results.Ok(ResultHelper.Success(customers));
 });
 
 app.MapGet("/customers/{id}", async (string id, ICustomerRepository customerRepo) =>
@@ -108,50 +111,63 @@ app.MapGet("/customers/{id}", async (string id, ICustomerRepository customerRepo
 app.MapPost("/customers", async (CreateCustomerRequest request, IDynamoRepository<Customer> customerRepo) =>
 {
     if (!ValidationHelper.IsValidCustomer(request))
-        return Results.BadRequest("Invalid customer data");
-    
+    {
+        return Results.BadRequest(ResultHelper.BadRequest("Invalid customer data"));
+    }
+
     // 1. 生成唯一 ID
     // 使用 N 格式 (无连字符) 使 ID 更简洁，例如 "46f38742..."
     var customerId = Guid.NewGuid().ToString("N");
-    
+
     // 2. 映射 DTO 到实体
     // 构造函数会处理单表设计的 PK/SK/GSI1 逻辑
     // (可选) 处理 GSI2 如果希望通过其他字段查询
     var customer = new Customer(customerId)
     {
-        Name = request.Name,
-        Contact = request.Contact,
-        Address = request.Address ?? string.Empty,
-        TaxId = request.TaxId ?? string.Empty
+        Name = request.name,
+        Contact = request.contact,
+        Address = request.address ?? string.Empty,
+        TaxId = request.taxId ?? string.Empty,
     };
-    
+
     await customerRepo.CreateAsync(customer);
     return Results.Created($"/customers/{customer.Id}", customer);
 });
 
 app.MapPut("/customers/{id}", async (string id, CreateCustomerRequest customer, ICustomerRepository customerRepo) =>
 {
-    if (id != customer.Id) return Results.BadRequest();
+    if (id != customer.id)
+    {
+        return Results.BadRequest();
+    }
 
     if (!ValidationHelper.IsValidCustomer(customer))
+    {
         return Results.BadRequest("Invalid customer data");
+    }
 
     var existingCustomer = await customerRepo.GetByIdAsync(id);
-    if (existingCustomer == null) return Results.NotFound();
-    
-    existingCustomer.Name = customer.Name;
-    existingCustomer.Contact = customer.Contact;
-    existingCustomer.Address = customer.Address;
-    existingCustomer.TaxId = customer.TaxId;
+    if (existingCustomer == null)
+    {
+        return Results.NotFound();
+    }
+
+    existingCustomer.Name = customer.name;
+    existingCustomer.Contact = customer.contact;
+    existingCustomer.Address = customer.address;
+    existingCustomer.TaxId = customer.taxId;
 
     await customerRepo.UpdateAsync(existingCustomer);
-    return Results.Ok(customer);
+    return Results.Ok(ResultHelper.Success(existingCustomer));
 });
 
 app.MapDelete("/customers/{id}", async (string id, ICustomerRepository customerRepo) =>
 {
     var existingCustomer = await customerRepo.GetByIdAsync(id);
-    if (existingCustomer == null) return Results.NotFound();
+    if (existingCustomer == null)
+    {
+        return Results.NotFound();
+    }
 
     await customerRepo.DeleteAsync(existingCustomer.PartitionKey, existingCustomer.SortKey);
     return Results.NoContent();
@@ -161,17 +177,25 @@ app.MapDelete("/customers/{id}", async (string id, ICustomerRepository customerR
 app.MapGet("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =>
 {
     var invoice = await invoiceRepo.GetByIdAsync(id);
-    if (invoice == null) return Results.NotFound();
-    return Results.Ok(invoice);
+    if (invoice == null)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(ResultHelper.Success(invoice));
 });
 
 app.MapPost("/invoices", async (Invoice invoice, IInvoiceRepository invoiceRepo) =>
 {
     if (!ValidationHelper.IsValidInvoice(invoice))
+    {
         return Results.BadRequest("Invalid invoice data");
+    }
 
     if (string.IsNullOrEmpty(invoice.Id))
+    {
         invoice.Id = Guid.NewGuid().ToString();
+    }
 
     await invoiceRepo.CreateAsync(invoice);
     return Results.Created($"/invoices/{invoice.Id}", invoice);
@@ -179,22 +203,33 @@ app.MapPost("/invoices", async (Invoice invoice, IInvoiceRepository invoiceRepo)
 
 app.MapPut("/invoices/{id}", async (string id, Invoice invoice, IInvoiceRepository invoiceRepo) =>
 {
-    if (id != invoice.Id) return Results.BadRequest();
+    if (id != invoice.Id)
+    {
+        return Results.BadRequest();
+    }
 
     if (!ValidationHelper.IsValidInvoice(invoice))
+    {
         return Results.BadRequest("Invalid invoice data");
+    }
 
     var existingInvoice = await invoiceRepo.GetByIdAsync(id);
-    if (existingInvoice == null) return Results.NotFound();
+    if (existingInvoice == null)
+    {
+        return Results.NotFound();
+    }
 
     await invoiceRepo.UpdateAsync(invoice);
-    return Results.Ok(invoice);
+    return Results.Ok(ResultHelper.Success(invoice));
 });
 
 app.MapDelete("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo) =>
 {
     var existingInvoice = await invoiceRepo.GetByIdAsync(id);
-    if (existingInvoice == null) return Results.NotFound();
+    if (existingInvoice == null)
+    {
+        return Results.NotFound();
+    }
 
     await invoiceRepo.DeleteAsync(existingInvoice.PartitionKey, existingInvoice.SortKey);
     return Results.NoContent();
@@ -204,7 +239,7 @@ app.MapDelete("/invoices/{id}", async (string id, IInvoiceRepository invoiceRepo
 app.MapGet("/customers/{customerId}/invoices", async (string customerId, IInvoiceRepository invoiceRepo) =>
 {
     var customerInvoices = await invoiceRepo.GetCustomerInvoicesAsync(customerId);
-    return Results.Ok(customerInvoices);
+    return Results.Ok(ResultHelper.Success(customerInvoices));
 });
 
 app.Run();
