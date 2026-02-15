@@ -68,7 +68,7 @@ curl http://localhost:5000/customers
 # Create a customer
 curl -X POST http://localhost:5000/customers \
   -H "Content-Type: application/json" \
-  -d '{"name":"Test Customer","email":"test@example.com"}'
+  -d '{"name":"Customer Name","contact":"your_phone_number","address":"No 100, Kings St, New Yourk"}'
 ```
 
 ## Code Architecture
@@ -78,6 +78,11 @@ curl -X POST http://localhost:5000/customers \
 invoice-app/
 ├── invoice-api/                    # Main API application
 │   ├── Program.cs                  # Minimal API endpoints and DI configuration
+│   ├── DTO/                        # Data transfer objects
+│   │   ├── CreateCustomerRequest.cs   # Customer creation DTO
+│   │   ├── CreateInvoiceRequest.cs    # Invoice creation DTO
+│   │   ├── ApiResponse.cs          # Generic API response wrapper
+│   │   └── ResultHelper.cs         # Response factory methods
 │   ├── Models/                     # Data models
 │   │   ├── Customer.cs
 │   │   └── Invoice.cs
@@ -105,6 +110,27 @@ invoice-app/
 - **Local Testing:** LocalStack (mock AWS services)
 - **Containerization:** Docker
 
+### DTO Layer
+
+The `DTO` folder contains data transfer objects used for API request/response contracts:
+
+**Request DTOs:**
+- `CreateCustomerRequest` - Validates customer creation input
+- `CreateInvoiceRequest` - Validates invoice creation input
+
+**Response DTOs:**
+- `ApiResponse<T>` - Generic wrapper for consistent API responses
+  - `Success`: Boolean flag indicating operation status
+  - `Data`: Generic payload (nullable)
+  - `Message`: Optional contextual message
+  - `ErrorCode`: Error code for failed operations
+
+- `ResultHelper` - Static factory methods for creating responses
+  - `Success<T>(data, message)` - Success with data
+  - `Success<T>(message)` - Success without data
+  - `BadRequest(message)` - 400 error response
+  - `Error(message, code)` - Server error response
+
 ### Key Patterns
 
 #### Dependency Injection
@@ -120,11 +146,27 @@ In `Program.cs:16-57`, DynamoDB client is configured differently based on `ASPNE
 
 #### DynamoDB Single Table Design
 - **Table name:** `InvoiceAppDev` (dev), `InvoiceApp` (production)
-- **Primary Key:** `pk` (partition) + `sk` (sort)
-- **GSI:** `gsi_pk` + `gsi_sk`
-- **Entity formats:**
-  - Customer: `pk=CUSTOMER#{id}`, `sk=CUSTOMER#{id}`
-  - Invoice: `pk=INVOICE#{id}`, `sk=INVOICE#{id}`, `gsi_pk=CUSTOMER#{customerId}`, `gsi_sk=INVOICE#{date}`
+- **Primary Key:** `PK` (partition) + `SK` (sort)
+- **GSI1:** `GSI1PK` + `GSI1SK` - 用于全局索引查询
+- **GSI2:** `GSI2PK` + `GSI2SK` - 用于辅助查询
+
+**Entity formats:**
+
+Customer Entity:
+- `PK=CUST#{id}`
+- `SK=METADATA`
+- `GSI1PK=CUST#ALL` (用于列出所有客户)
+- `GSI1SK={timestamp}`
+- `EntityType=Customer`
+
+Invoice Entity:
+- `PK=CUST#{customerId}` (客户分区键)
+- `SK=INV#{date}#{id}` (发票排序键)
+- `GSI1PK=INV#ALL` (用于列出所有发票)
+- `GSI1SK={date}#{id}` (按日期范围查询)
+- `GSI2PK=INV#{id}` (用于通过发票 ID 查询)
+- `GSI2SK=METADATA`
+- `EntityType=Invoice`
 
 #### Repository Pattern
 Generic repository interface `IDynamoRepository<T>` supports CRUD operations for both Customer and Invoice models, with a specialized `IInvoiceRepository` for customer-specific invoice queries.
@@ -173,7 +215,7 @@ Generic repository interface `IDynamoRepository<T>` supports CRUD operations for
 
 - The application is configured for **serverless deployment** on AWS Lambda
 - Use `docker-compose --profile init` to run the database initializer
-- The `/healthz` endpoint performs an actual database query to verify connectivity
+- The `/health` endpoint performs an actual database query to verify connectivity
 - LocalStack data persists in `.localstack/` directory
 - Customer IDs and Invoice IDs are auto-generated as GUIDs if not provided
 
