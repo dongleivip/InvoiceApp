@@ -16,5 +16,5 @@ Content-Type: application/json
   "name": "客户名称",
   "contact": "10010",
   "address": "北京市昌平区100号",
-  "taxId" : "tax_10001"
+  "taxId": "tax_10001"
 }

@@ -1,35 +1,32 @@
-using Amazon.DynamoDBv2.DataModel;
-using Amazon.DynamoDBv2.DocumentModel;
-using InvoiceApi.Models;
-
 namespace InvoiceApi.Repositories;
 
-public class DynamoRepository<T> : IDynamoRepository<T> where T : DataEntity, new()
+using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DocumentModel;
+using Models;
+
+public class DynamoRepository<T> : IDynamoRepository<T>
+    where T : DataEntity, new()
 {
     private readonly IDynamoDBContext _context;
-    private readonly string _tableName;
 
-    public DynamoRepository(IDynamoDBContext context, IConfiguration configuration)
+    public DynamoRepository(IDynamoDBContext context)
     {
         _context = context;
-        var tableName = configuration.GetSection("DynamoDB");
-        _tableName = configuration["DynamoDB:TableName"] ?? throw new Exception("Table Name not configured");
     }
-
 
     public async Task<T?> GetAsync(string pk, string sk)
     {
         return await _context.LoadAsync<T>(pk, sk);
     }
 
-    public async Task CreateAsync(T entity)
+    public async Task SaveAsync(T entity)
     {
         var now = DateTime.Now;
         entity.CreatedAt = now;
         entity.UpdatedAt = now;
-        
+
         Console.WriteLine(entity.Data.ToJson());
-        
+
         await _context.SaveAsync(entity);
     }
 
@@ -47,7 +44,7 @@ public class DynamoRepository<T> : IDynamoRepository<T> where T : DataEntity, ne
             // 在 DynamoDB 中，Query 必须包含对 Hash Key (PK) 的 "Equal" 条件
             // Partition Key 属性在实体中定义的特性或物理名是 "PK"
             // 注意：这里的 "PK" 需要与 DataEntity 中 [DynamoDBHashKey("PK")] 定义的名字一致
-            Filter = new QueryFilter("PK", QueryOperator.Equal, pk)
+            Filter = new QueryFilter("PK", QueryOperator.Equal, pk),
         };
 
         var search = _context.FromQueryAsync<T>(config);

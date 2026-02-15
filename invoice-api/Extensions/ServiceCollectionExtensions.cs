@@ -1,14 +1,15 @@
+namespace Microsoft.Extensions.DependencyInjection;
+
 using Amazon.DynamoDBv2.DataModel;
 using InvoiceApi.Models;
 using InvoiceApi.Repositories;
 
-namespace Microsoft.Extensions.DependencyInjection;
-
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// 添加通用 DynamoDB 仓储服务
+    ///     添加通用 DynamoDB 仓储服务.
     /// </summary>
+    /// <returns></returns>
     public static IServiceCollection AddDynamoRepository<T>(this IServiceCollection services)
         where T : DataEntity, new()
     {
@@ -22,8 +23,9 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 添加所有业务仓储服务
+    ///     添加所有业务仓储服务.
     /// </summary>
+    /// <returns></returns>
     public static IServiceCollection AddBusinessRepositories(this IServiceCollection services)
     {
         services.AddScoped<ICustomerRepository, CustomerRepository>();

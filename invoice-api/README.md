@@ -1,6 +1,7 @@
 # Invoice API
 
-This is a serverless API built with .NET 9 Minimal API and deployed on AWS Lambda. It uses DynamoDB with a single-table design to store customer and invoice data.
+This is a serverless API built with .NET 9 Minimal API and deployed on AWS Lambda. It uses DynamoDB with a single-table
+design to store customer and invoice data.
 
 ## Architecture
 
@@ -30,17 +31,20 @@ The solution uses a single DynamoDB table with the following structure:
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate credentials
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) (optional)
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) (
+  optional)
 
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd invoice-api
 ```
 
 2. Restore dependencies:
+
 ```bash
 dotnet restore
 ```
@@ -50,17 +54,20 @@ dotnet restore
 For local development, you can use AWS SAM or run the application directly with mock DynamoDB:
 
 1. Install and run DynamoDB Local:
+
 ```bash
 docker run -p 8000:8000 amazon/dynamodb-local
 ```
 
 2. Set environment variables:
+
 ```bash
 export DYNAMODB_ENDPOINT=http://localhost:8000
 export DYNAMODB_TABLE_NAME=InvoiceApp-Local
 ```
 
 3. Run the application:
+
 ```bash
 dotnet run
 ```
@@ -68,11 +75,13 @@ dotnet run
 ## Deployment to AWS Lambda
 
 1. Publish the application to AWS Lambda:
+
 ```bash
 dotnet lambda deploy-function InvoiceApi
 ```
 
 Or using AWS SAM:
+
 ```bash
 sam build
 sam deploy --guided
@@ -102,6 +111,7 @@ sam deploy --guided
 ## Request/Response Examples
 
 ### Create Customer
+
 ```json
 POST /customers
 {
@@ -112,6 +122,7 @@ POST /customers
 ```
 
 ### Create Invoice
+
 ```json
 POST /invoices
 {

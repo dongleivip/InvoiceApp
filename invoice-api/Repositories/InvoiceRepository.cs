@@ -1,7 +1,8 @@
-using Amazon.DynamoDBv2.DocumentModel;
-using InvoiceApi.Models;
-
 namespace InvoiceApi.Repositories;
+
+using Amazon.DynamoDBv2.DocumentModel;
+using Models;
+
 
 public class InvoiceRepository : IInvoiceRepository
 {
@@ -23,7 +24,7 @@ public class InvoiceRepository : IInvoiceRepository
         var config = new QueryOperationConfig
         {
             // 比如只查以 INV# 开头的排序键
-            Filter = new QueryFilter("SK", QueryOperator.BeginsWith, "INV#")
+            Filter = new QueryFilter("SK", QueryOperator.BeginsWith, "INV#"),
         };
 
         return await _repository.QueryAsync($"CUST#{customerId}", config);

@@ -1,9 +1,8 @@
 namespace InvoiceApi.DTO;
 
 public record CreateCustomerRequest(
-    string Name,
-    string? Id,
-    string? Contact,
-    string? Address,
-    string? TaxId
-);
+    string name,
+    string? id,
+    string? contact,
+    string? address,
+    string? taxId);

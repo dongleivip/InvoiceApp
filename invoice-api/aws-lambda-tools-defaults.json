@@ -1,14 +1,14 @@
 {
-    "Information": [
-        "This file provides default deployment settings for the Amazon.Lambda.Tools NuGet package. These settings",
-        "can be overridden in the project file (one of the .csproj files in the solution) by adding",
-        "PackageReference tags and property groups. See the README for more information."
-    ],
-    "defaults": {
-        "region" : "us-east-1",
-        "function-runtime": "dotnet8",
-        "function-memory-size": 256,
-        "function-timeout": 30,
-        "function-handler": "InvoiceApi::InvoiceApi.Program::Main"
-    }
+  "Information": [
+    "This file provides default deployment settings for the Amazon.Lambda.Tools NuGet package. These settings",
+    "can be overridden in the project file (one of the .csproj files in the solution) by adding",
+    "PackageReference tags and property groups. See the README for more information."
+  ],
+  "defaults": {
+    "region": "us-east-1",
+    "function-runtime": "dotnet8",
+    "function-memory-size": 256,
+    "function-timeout": 30,
+    "function-handler": "InvoiceApi::InvoiceApi.Program::Main"
+  }
 }
